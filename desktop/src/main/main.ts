@@ -32,7 +32,8 @@ import { nextCloseAt } from '../shared/schedule';
 import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
-import { helperBundleDir, helperPayloadInfo, installHelper } from './install';
+import { helperBundleDir, helperPayloadInfo, installHelper, type NodeNeed } from './install';
+import { NODE_RUNTIME } from '../shared/helper-runtime';
 import { ensureNodeTarball } from './node-runtime';
 import { offerAction } from '../shared/helper-offer';
 import { WINDOWS_LOCATION_BANNER, windowsExeTrusted } from '../shared/install-script';
@@ -86,6 +87,9 @@ if (HELPER_MODE) {
   // Windowson a segéd csak a telepítéskor kapott kulccsal áll szóba
   // (shared/client-key.ts); máshol a socket jogai szűkítenek.
   const client = new HelperClient(process.platform === 'win32' ? { key: readHelperKey } : {});
+  // A felület épp telepíti a segédet (a jelszóablak is ide tartozik): ilyenkor
+  // nem kínálunk csendes frissítést — a kettő ugyanazt a zárat kérné.
+  let helperInstalling = false;
 
   /**
    * A fő ablak. Nem a getAllWindows()-ból keressük: a gyorsbillentyűs réteg is
@@ -328,11 +332,25 @@ if (HELPER_MODE) {
       });
 
       ipcMain.handle('breaker:install', async () => {
+        helperInstalling = true;
         try {
-          await installHelper();
+          // macOS: ha a védett futtatókörnyezetben már a rögzített Node fut, a
+          // telepítő azt kölcsönzi — nem töltünk le semmit (javításnál).
+          let node: NodeNeed = 'unknown';
+          if (process.platform === 'darwin') {
+            try {
+              const st = await client.call('status') as StatusData;
+              node = st.helperLayout === 'root' && st.helperNode === NODE_RUNTIME.version ? 'have' : 'need';
+            } catch {
+              node = 'unknown';
+            }
+          }
+          await installHelper(node);
           return { ok: true };
         } catch (err) {
           return { ok: false, error: (err as Error).message };
+        } finally {
+          helperInstalling = false;
         }
       });
 
@@ -718,24 +736,44 @@ if (HELPER_MODE) {
       );
       // A SEGÉD CSENDES FRISSÍTÉSE (#151, macOS): ha a védett futtatókörnyezetből
       // futó segéd csomagja régebbi, felkínáljuk a sajátunkat (a segéd csak
-      // aláírt, újabb csomagot vesz át — helper/update.ts). Ha új Node kell, előbb
-      // letöltjük. Tízpercenként legfeljebb egyszer ugyanarra a párra.
+      // aláírt, újabb csomagot vesz át — helper/update.ts). Ha új Node kell,
+      // előbb letöltjük — és ugyanarra a párra legközelebb egyből azzal kínálunk.
+      // Külön kapcsolaton, hosszú várakozással: a segéd kapcsolatonként sorban
+      // válaszol, és egy frissítés percekig tarthat — a felület kérései közben
+      // nem állhatnak mögötte (tíz másodperc után a felület azt hinné, nincs
+      // védelem). Sikertelen próba után egyre ritkábban: 10 perc, 20, 40 …
+      // legfeljebb 6 óra.
       const ownBuild = app.isPackaged && process.platform === 'darwin' ? helperPayloadInfo() : null;
-      let lastOffer: { key: string; at: number } | null = null;
-      const maybeOfferHelperUpdate = (st: StatusData): void => {
-        if (!ownBuild || offerAction(st, ownBuild) !== 'offer') return;
-        const key = `${st.helperBuild}|${ownBuild.sha256}`;
-        if (lastOffer && lastOffer.key === key && Date.now() - lastOffer.at < 10 * 60_000) return;
-        lastOffer = { key, at: Date.now() };
-        const offer = async (nodeTar?: string): Promise<void> => {
-          const r = await client.call('helper_update_offer', { bundle: helperBundleDir(), ...(nodeTar ? { nodeTar } : {}) }) as {
-            update?: { ok: boolean; error?: string };
-          };
-          if (r.update && !r.update.ok && r.update.error === 'need-node' && !nodeTar) {
-            await offer(await ensureNodeTarball());
-          }
+      const updateClient = ownBuild ? new HelperClient({ timeoutMs: 20 * 60_000 }) : null;
+      const offers = { key: '', next: 0, fails: 0, needNode: false, busy: false };
+      const offerOnce = async (nodeTar?: string): Promise<{ ok: boolean; error?: string }> => {
+        const r = await updateClient!.call('helper_update_offer', { bundle: helperBundleDir(), ...(nodeTar ? { nodeTar } : {}) }) as {
+          update?: { ok: boolean; error?: string };
         };
-        void offer().catch(() => { /* a következő körben újra; a hiba a segéd státuszában látszik */ });
+        return r.update ?? { ok: false, error: 'unsupported' };
+      };
+      const maybeOfferHelperUpdate = (st: StatusData): void => {
+        if (!ownBuild || helperInstalling || offers.busy || offerAction(st, ownBuild) !== 'offer') return;
+        const key = `${st.helperBuild}|${ownBuild.sha256}`;
+        if (offers.key !== key) Object.assign(offers, { key, next: 0, fails: 0, needNode: false });
+        if (Date.now() < offers.next) return;
+        offers.busy = true;
+        void (async () => {
+          let r: { ok: boolean; error?: string } | null = null;
+          try {
+            r = await offerOnce(offers.needNode ? await ensureNodeTarball() : undefined);
+            if (!r.ok && r.error === 'need-node' && !offers.needNode) {
+              offers.needNode = true;
+              r = await offerOnce(await ensureNodeTarball());
+            }
+          } catch {
+            r = null; // a letöltés vagy a kapcsolat — a segéd státusza mondja, hol tart
+          } finally {
+            offers.fails = r?.ok ? 0 : offers.fails + 1;
+            offers.next = Date.now() + (r?.ok ? 2 * 60_000 : Math.min(6 * 3600_000, 10 * 60_000 * 2 ** (offers.fails - 1)));
+            offers.busy = false;
+          }
+        })();
       };
       ipcMain.handle('breaker:helper-payload', () => ownBuild);
 

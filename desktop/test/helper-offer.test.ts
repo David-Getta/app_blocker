@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { helperBanner, offerAction, type HelperFacts, type OwnBuild } from '../src/shared/helper-offer';
+import { helperBanner, NEED_NODE_GRACE_MS, offerAction, type HelperFacts, type OwnBuild } from '../src/shared/helper-offer';
 import { macosAtLeast } from '../src/shared/helper-runtime';
 import { cachedTarballOk, downloadVerified, type FetchFn } from '../src/shared/node-download';
 import { isNewer } from '../src/shared/version';
@@ -35,6 +35,21 @@ test('felkínálás: csak a védett futtatókörnyezetből futó, a frissítést
   // Aláíratlan saját csomag (fejlesztői build, kulcs előtti kiadás): a segéd úgysem venné át.
   assert.equal(offerAction(root(), UNSIGNED), 'none');
   assert.equal(offerAction(root({ helperAppVersion: '0.4.302' }), UNSIGNED), 'helper-newer', 'az app frissítése így is a teendő');
+});
+
+test('ha a Node letöltése percek óta nem sikerül, és a protokoll más, a javító gomb jön — addig csend', () => {
+  const now = 10_000_000;
+  const failedAt = (ago: number) => root({ helperVersion: '0.7.0', helperUpdate: { state: 'failed', error: 'need-node', at: now - ago } });
+  assert.equal(helperBanner(failedAt(60_000), OWN, '0.7.1', now), 'none', 'a felület még tölt');
+  assert.equal(helperBanner(failedAt(NEED_NODE_GRACE_MS), OWN, '0.7.1', now), 'repair');
+  assert.equal(helperBanner(failedAt(NEED_NODE_GRACE_MS * 10), OWN, '0.7.0', now), 'none', 'ugyanaz a protokoll: a régi kód is ért mindent');
+});
+
+test('macOS 13.5 előtt a költöztető gomb nem jelenik meg (nem segítene); a protokoll-eltérés sávja marad', () => {
+  const old = { ...OWN, runtimeSupported: false };
+  assert.equal(helperBanner({ platform: 'darwin', helperVersion: '0.7.0', helperLayout: 'bundle' }, old, '0.7.0'), 'none');
+  assert.equal(helperBanner({ platform: 'darwin', helperVersion: '0.6.8', helperLayout: 'bundle' }, old, '0.7.0'), 'stale');
+  assert.equal(helperBanner({ platform: 'darwin', helperVersion: '0.7.0', helperLayout: 'bundle' }, { ...OWN, runtimeSupported: true }, '0.7.0'), 'move');
 });
 
 test('aláíratlan saját csomagnál nincs csendes út: a sáv a régi szabály szerint (csak protokoll-eltérésre) szól', () => {
@@ -110,5 +125,39 @@ test('Node letöltése: az első jó forrásból; rossz ujjlenyomat, méret, HTT
   await assert.rejects(downloadVerified(['https://a/x', 'https://d/x'], dest, pin, fakeFetch({
     'https://a/x': crypto.randomBytes(1000),
   })), /A Node\.js letöltése nem sikerült.*ujjlenyomat.*nincs kapcsolat/s);
+  assert.deepEqual(fs.readdirSync(dir), []);
+});
+
+test('Node letöltése: egy elakadt forrás (nem válaszol, vagy félúton megáll) nem fogja a letöltést — a következő jön', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nodedl-'));
+  const good = crypto.randomBytes(100);
+  const pin = { tarSha256: crypto.createHash('sha256').update(good).digest('hex'), tarSize: good.length };
+  const dest = path.join(dir, 'node-v1.2.3-darwin-arm64.tar.xz');
+  const signals: AbortSignal[] = [];
+  const never = new Promise<never>(() => undefined);
+  const fetchFn: FetchFn = async (url, signal) => {
+    signals.push(signal);
+    if (url === 'https://csend/x') return never; // a kérés sosem válaszol
+    if (url === 'https://felut/x') {
+      return {
+        ok: true, status: 200,
+        body: (async function* gen() { yield new Uint8Array(good.subarray(0, 10)); await never; })(),
+      };
+    }
+    return fakeFetch({ [url]: good })(url, signal);
+  };
+  const t0 = Date.now();
+  await downloadVerified(['https://csend/x', 'https://felut/x', 'https://jo/x'], dest, pin, fetchFn, { idleMs: 50, totalMs: 5_000 });
+  assert.ok(Date.now() - t0 < 3_000, 'nem várt a korlátnál tovább');
+  assert.ok(fs.readFileSync(dest).equals(good));
+  assert.deepEqual(fs.readdirSync(dir), [path.basename(dest)], 'ideiglenes fájl nem marad');
+  assert.ok(signals[0].aborted && signals[1].aborted, 'az elakadt kéréseket a letöltő meg is szakítja');
+  // A teljes korlát is: egy csepegő forrás (mindig jön egy bájt, de soha nem ér véget).
+  const drip: FetchFn = async () => ({
+    ok: true, status: 200,
+    body: (async function* gen() { for (;;) { await new Promise((r) => setTimeout(r, 5)); yield new Uint8Array(0); } })(),
+  });
+  fs.rmSync(dest);
+  await assert.rejects(downloadVerified(['https://csepeg/x'], dest, pin, drip, { idleMs: 1_000, totalMs: 100 }), /túl lassú/);
   assert.deepEqual(fs.readdirSync(dir), []);
 });

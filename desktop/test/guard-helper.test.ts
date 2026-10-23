@@ -88,7 +88,7 @@ test('a segéd sosem lép ki magától — a futó kódot csak rendszergazdai l�
   }
   assert.deepEqual(offenders, [], `kilépés a segédben: ${offenders.join(', ')}`);
   // A frissítő (és vele a harmadik kilépés) csak a védett futtatókörnyezetben jön létre.
-  assert.ok(read('desktop/src/helper/index.ts').includes("if (process.platform === 'darwin' && rt.layout === 'root' && rt.id && rt.appVersion && rt.binSha256\n    && typeof process.getuid === 'function' && process.getuid() === 0) {\n    const ownId = rt.id;\n    updater = createUpdater({"));
+  assert.ok(read('desktop/src/helper/index.ts').includes("if (process.platform === 'darwin' && rt.layout === 'root' && rt.id && rt.appVersion && rt.binSha256\n    && typeof process.getuid === 'function' && process.getuid() === 0\n    && ownerUid !== undefined && Number.isSafeInteger(ownerUid) && ownerUid > 0) {\n    const readAs = ownerUid;\n    const ownId = rt.id;\n    updater = createUpdater({"));
   // A figyelő be van kötve, és mindkét esetet naplózza.
   const index = read('desktop/src/helper/index.ts');
   assert.ok(index.includes('const verdict = codeWatchStep(watch, mark, Date.now());'));

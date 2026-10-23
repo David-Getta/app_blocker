@@ -246,7 +246,9 @@ export function runHelper(): void {
   const rt = runtimeInfo(__dirname);
   let updater: Updater | null = null;
   if (process.platform === 'darwin' && rt.layout === 'root' && rt.id && rt.appVersion && rt.binSha256
-    && typeof process.getuid === 'function' && process.getuid() === 0) {
+    && typeof process.getuid === 'function' && process.getuid() === 0
+    && ownerUid !== undefined && Number.isSafeInteger(ownerUid) && ownerUid > 0) {
+    const readAs = ownerUid;
     const ownId = rt.id;
     updater = createUpdater({
       root: RUNTIME_ROOT,
@@ -268,6 +270,7 @@ export function runHelper(): void {
       now: () => Date.now(),
       pid: process.pid,
       alive: (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; } },
+      readAs,
       onActivated: () => {
         // A válasz előbb menjen ki; aztán a zár el, és ki — a launchd az új
         // változatot indítja (a current már arra mutat).

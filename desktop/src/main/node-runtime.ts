@@ -23,8 +23,8 @@ export function nodeCacheDir(): string {
   return path.join(app.getPath('home'), 'Library', 'Caches', 'hu.breaker.app', 'node');
 }
 
-const netFetch: FetchFn = async (url) => {
-  const res = await net.fetch(url);
+const netFetch: FetchFn = async (url, signal) => {
+  const res = await net.fetch(url, { signal });
   return { ok: res.ok, status: res.status, body: res.body as unknown as AsyncIterable<Uint8Array> | null };
 };
 

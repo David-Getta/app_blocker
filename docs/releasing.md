@@ -288,11 +288,14 @@ node desktop/scripts/gen-helper-key.js ~/breaker-helper-r1.pem r1
    (ez nem titok). Onnantól minden kiadás aláírt csomagot kér.
 2. GitHub → Settings → Environments → `helper-signing` (az első kiadás
    magától létrehozza, védelem nélkül — ezért állítsd be). A „Deployment
-   branches and tags” alatt csak az, amiről a kiadás fut: a `v*` címkék, és ha
-   kézzel indítod (Run workflow), az az ág is. Benne egy titok:
-   `HELPER_SIGNING_KEY`, az értéke a `.pem` fájl teljes tartalma. Ha a
-   „Required reviewers” alatt te magad is ott vagy, minden kiadás megvárja a
-   jóváhagyásodat — ez erősebb, de a kiadás addig áll.
+   branches and tags” alatt „Selected branches and tags”: a `v*` címkék (a
+   címke-push ezen fut), és ha kézzel indítod (Run workflow), az az ág is.
+   Benne egy titok: `HELPER_SIGNING_KEY`, az értéke a `.pem` fájl teljes
+   tartalma. Ha a „Required reviewers” alatt te magad is ott vagy, minden
+   kiadás megvárja a jóváhagyásodat — ez erősebb, de a kiadás addig áll.
+   Reviewer nélkül egy `v*` címkét toló bárki aláíratná a címkézett commit
+   csomagját: ezért a címkéket is védd (Settings → Rules → Rulesets → új „tag
+   ruleset” a `v*` mintára: csak te hozhatod létre, mozgathatod, törölheted).
 3. A `.pem` fájlról offline mentés (például titkosított pendrive), aztán
    töröld a gépről.
 
@@ -307,15 +310,21 @@ változóból); kulcs nélkül aláíratlan marad (fejlesztői build). A Mac-cso
 `Contents/Resources/helper/` alatt van; a füstpróba (`scripts/smoke-packaged.sh`)
 ellenőrzi, hogy ott van, és az ujjlenyomata a leíróé.
 
-**A kiadásban** (`release.yml`) a leírót egy külön job írja alá (`helper-sign`,
-a `helper-signing` környezetben — csak ott van a kulcs, és ott a függőségek
-telepítő-szkriptje sem fut: `npm ci --ignore-scripts`), `--release` módban: a
+**A kiadásban** (`release.yml`) két job dolgozik a csomagon. A `helper-build`
+titok és jogosultság nélkül, Linuxon megépíti (itt fut a fordító és minden
+függőség). A `helper-signing` környezetben futó `helper-sign` csak letölti, és
+`--release` módban aláírja — függőség, fordítás és lefordított kód nélkül: az
+aláíró (`scripts/sign-helper-manifest.js`) csak a Node beépített moduljait és
+a repó saját fájljait használja, a kulcslistát a forrásból olvassa
+(`helper-keys.ts`; egy teszt nézi, hogy a lefordítottal egyezik). A
 csomagban nem lehet a CI-próba kulcsa, és ha van kiadási kulcs, az aláírás
 kötelező. A macOS-csomagoló a saját buildje mellé veszi át
 (`sign-helper-manifest.js --adopt`) — csak ha a két build bájtra ugyanazt a
 csomagot adta, a leíró többi része is egyezik, és az aláírás a kulcslistával
 érvényes. Egy eltérésnél a kiadás megáll: a csomag determinisztikus, tehát
-valami más forrásból vagy más eszközzel épült.
+valami más forrásból vagy más eszközzel épült. Hogy a Linuxon és a macOS-en
+épített csomag bájtra egyezik-e, a CI minden pushnál nézi
+(`helper-payload-linux` → a macOS-csomagoló összeveti).
 
 **A CI** a macOS-próbához minden futáskor egy ideiglenes kulcsot generál: a
 nyilvános fele (`BREAKER_HELPER_TEST_PUBKEY`) a csomag `test-keys.json`-jába

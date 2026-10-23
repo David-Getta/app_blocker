@@ -655,12 +655,14 @@ napló a `/Library/Application Support/Breaker/helper.log`.
 - **Az app törlése** a védett futtatókörnyezetből futó segédet nem érinti: a
   beállított szabályokkal tovább tilt (a menetrend, a keret és a munkamenet is
   zár). Teljes eltávolítás: a gépre tett eltávolító, rendszergazdaként.
-- **A kiadás** (`release.yml`): a leírót egy külön job írja alá (a
-  `helper-signing` környezet titkával — csak ott van a kulcs, és ott a
-  függőségek telepítő-szkriptje sem fut); a macOS-csomagoló a saját buildje
-  mellé csak akkor veszi át, ha a két build bájtra ugyanazt a csomagot adta
-  (`sign-helper-manifest.js --adopt`). Amíg nincs kiadási kulcs, a leíró
-  aláíratlan, a felület nem kínálja fel, és a futás lapja figyelmeztet.
+- **A kiadás** (`release.yml`): a csomagot egy titok nélküli job építi
+  Linuxon, egy másik írja alá a `helper-signing` környezet titkával — ott csak
+  a repó aláírója és a Node beépített moduljai futnak, se függőség, se
+  fordítás, se lefordított kód. A macOS-csomagoló a saját buildje mellé csak
+  akkor veszi át, ha a két build bájtra ugyanazt a csomagot adta
+  (`sign-helper-manifest.js --adopt`; a CI minden pushnál összeveti). Amíg
+  nincs kiadási kulcs, a leíró aláíratlan, a felület nem kínálja fel, és a
+  futás lapja figyelmeztet.
 - **Próba.** A gyökér-héjak és az őr tesztjei élesben futnak dash-sel és
   `bash --posix`-szal, csonkolt rendszereszközökkel (launchctl, codesign,
   tar, plutil …), a hibaágakkal, megszakítással és zár-versennyel együtt. A

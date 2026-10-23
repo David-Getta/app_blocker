@@ -31,6 +31,7 @@ function deps(r: string, over: Partial<UpdateDeps> = {}, clock = { t: 1_000_000 
     now: () => clock.t,
     pid: process.pid,
     alive: () => true,
+    readAs: 501,
     onActivated: () => {},
     ...over,
   };

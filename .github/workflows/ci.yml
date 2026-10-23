@@ -223,15 +223,46 @@ jobs:
   # szkriptet futtatja a feltöltés előtt — itt viszont minden pushnál kiderül,
   # ha a csomag nem indul (egy fájl kimarad a csomagból, egy Electron-
   # frissítés, a csak-Mac vagy csak-Windows indulási út), nem a kiadás napján.
+  # A SEGÉD CSOMAGJA LINUXON (#151). A kiadás a csomagot Linuxon építi és írja
+  # alá, a macOS-csomagoló pedig csak akkor veszi át az aláírást, ha a saját
+  # buildje bájtra ugyanazt adta. Hogy ez minden pushnál igaz-e, ne a kiadás
+  # napján derüljön ki: ez a job ugyanúgy építi (függőség-szkriptek nélkül), a
+  # macOS-csomagoló összeveti.
+  helper-payload-linux:
+    name: A segéd csomagja Linuxon (a kiadás útja)
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npm run build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: helper-payload-linux
+          path: |
+            desktop/dist-payload/helper/payload.tar
+            desktop/dist-payload/helper/manifest.json
+          if-no-files-found: error
+          retention-days: 3
+
   # Csak a mappa készül (--dir), telepítő nem: az a kiadás dolga.
   desktop-package:
     name: Becsomagolt app füstpróbája (${{ matrix.os }})
+    needs: helper-payload-linux
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 110
     defaults:
       run:
         working-directory: desktop
@@ -278,6 +309,22 @@ jobs:
         shell: bash
         timeout-minutes: 3
         run: bash scripts/smoke-packaged.sh
+      # A Linuxon és az itt épített csomag bájtra ugyanaz (a próba kulcsa
+      # nélkül, ahogy a kiadás építi) — különben a kiadás --adopt-ja megállna.
+      - uses: actions/download-artifact@v7
+        if: runner.os == 'macOS'
+        with:
+          name: helper-payload-linux
+          path: ${{ runner.temp }}/helper-linux
+      - name: macOS — a segéd csomagja bájtra egyezik a Linuxon építettel
+        if: runner.os == 'macOS'
+        run: |
+          node -e "
+            require('./scripts/pack-helper-payload.js').pack({ out: process.argv[1], infoPath: process.argv[1] + '/info.json' });
+          " "$RUNNER_TEMP/helper-mac"
+          cmp "$RUNNER_TEMP/helper-linux/payload.tar" "$RUNNER_TEMP/helper-mac/payload.tar"
+          cmp "$RUNNER_TEMP/helper-linux/manifest.json" "$RUNNER_TEMP/helper-mac/manifest.json"
+          echo "a két csomag bájtra egyezik: $(shasum -a 256 "$RUNNER_TEMP/helper-mac/payload.tar" | cut -d' ' -f1)"
       # A BECSOMAGOLT SEGÉD (macOS, #151). A rendszerjoggal futó segéd nem az
       # app-csomagból fut (azt az app tulajdonosa írhatja — K1), hanem a csak
       # root által írható védett futtatókörnyezetből, a hivatalos Node.js-szel.
@@ -293,7 +340,9 @@ jobs:
       # települ (scripts/mac-helper-probe.sh).
       - name: macOS — a segéd a védett futtatókörnyezetből tilt, csendben frissül, az őr tart, az eltávolító leveszi
         if: runner.os == 'macOS'
-        timeout-minutes: 55
+        # A próba 60 perc után maga áll meg, a diagnosztikával (PROBE_LIMIT);
+        # egy rendes futás kb. 20 perc.
+        timeout-minutes: 70
         env:
           PROBE_KEY: ${{ runner.temp }}/probe-key.pem
         run: bash scripts/mac-helper-probe.sh release/mac-arm64/Breaker.app

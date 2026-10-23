@@ -4775,8 +4775,13 @@ const WIRES = [
   },
   {
     file: 'desktop/scripts/sign-helper-manifest.js',
-    needle: 'verifyManifest(bytes, sig, trust);',
+    needle: "if (!crypto.verify(null, bytes, pub, Buffer.from(sig, 'base64'))) throw new SignError('az aláírás nem ellenőrizhető vissza');",
     lost: 'egy rossz aláírás csak a felhasználók gépén derülne ki',
+  },
+  {
+    file: 'desktop/scripts/sign-helper-manifest.js',
+    needle: 'manifest = verifyManifest(bytes, fs.readFileSync(fromSig, \'utf8\'), releaseKeys);',
+    lost: 'a Mac-csomagba ellenőrizetlen aláírás kerülne — a segédek a kiadást elutasítanák',
   },
   // #151: AZ APP A VÉDETT FUTTATÓKÖRNYEZETBE TELEPÍT, és felkínálja a saját
   // csomagját. Ha a telepítő a régi parancsot futtatná, semmi nem hasalna el —
@@ -4788,15 +4793,40 @@ const WIRES = [
   },
   {
     file: 'desktop/src/main/main.ts',
-    needle: "await client.call('helper_update_offer', { bundle: helperBundleDir(),",
+    needle: "await updateClient!.call('helper_update_offer', { bundle: helperBundleDir(),",
     lost: 'az app sosem kínálná fel a saját csomagját — a segéd minden kiadásnál jelszót kérne',
+  },
+  // Az ajánlat a saját kapcsolatán: a segéd kapcsolatonként sorban válaszol, és
+  // egy frissítés percekig tart — a felület kérései mögötte tíz másodperc után
+  // elbuknának, és a felület „nincs telepítve” kártyát mutatna.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const updateClient = ownBuild ? new HelperClient({ timeoutMs: 20 * 60_000 }) : null;',
+    lost: 'egy csendes frissítés alatt a felület azt hinné, nincs védelem, és fölöslegesen jelszót kérne',
+  },
+  {
+    file: 'desktop/src/shared/node-download.ts',
+    needle: "idle = setTimeout(() => ac.abort(new Error('elakadt')), limits.idleMs);",
+    lost: 'egy elakadt letöltés a telepítést és a csendes frissítést is az app újraindításáig fogná',
   },
   // A kiadás: a kulcs csak az aláíró jobban; a Mac-csomag az aláírt leírót
   // csak a bájtra egyező csomag mellé veszi át.
   {
     file: '.github/workflows/release.yml',
-    needle: 'run: node scripts/sign-helper-manifest.js --release',
+    needle: 'run: node desktop/scripts/sign-helper-manifest.js --release "$RUNNER_TEMP/helper"',
     lost: 'a kiadás leírója aláíratlan maradna — a telepített segédek csak jelszóval frissülnének',
+  },
+  // A kulcs mellett nem fut függőség: az aláíró a lefordított kódot nem tölti
+  // be (a kulcslistát a forrásból olvassa), és a kulcsos job nem is fordít.
+  {
+    file: 'desktop/scripts/sign-helper-manifest.js',
+    needle: 'function sign({ dir, release = false, pem, testPubkey, keys } = {}) {\n  const releaseKeys = keys || readReleaseKeys();',
+    lost: 'az aláíró a lefordított (függőség írta) kódot töltené be a kiadási kulcs mellett',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'cmp "$RUNNER_TEMP/helper-linux/payload.tar" "$RUNNER_TEMP/helper-mac/payload.tar"',
+    lost: 'hogy a Linuxon és a macOS-en épített csomag bájtra egyezik-e, csak a kiadás napján derülne ki',
   },
   {
     file: '.github/workflows/release.yml',
@@ -4807,6 +4837,18 @@ const WIRES = [
     file: '.github/workflows/release.yml',
     needle: '    environment: helper-signing\n',
     lost: 'az aláíró kulcs a környezet védelme (jóváhagyó, ág-szabály) nélkül volna elérhető',
+  },
+  // A felkínált fájlokat a segéd a felkínáló jogaival olvassa: egy keménylink
+  // vagy egy közben kicserélt link sem visz el egy csak root által olvasható fájlhoz.
+  {
+    file: 'desktop/src/shared/runtime-shell.ts',
+    needle: '`  limited ${o.copySeconds} ${o.tools.asUser} "#$READ_AS" /bin/sh -c',
+    lost: 'a sima felhasználó a frissítési ajánlattal root-fájlokat olvastathatna be a segéddel',
+  },
+  {
+    file: 'desktop/src/helper/update.ts',
+    needle: 'macFetchScript({ bundle: offer.bundle, nodeTar: offer.nodeTar ?? null, readAs: d.readAs }, d.shellOptions)',
+    lost: 'a felkínált fájlokat rootként olvasná be',
   },
   // A CI-próba a csendes frissítést a próba saját kulcsával nézi.
   {

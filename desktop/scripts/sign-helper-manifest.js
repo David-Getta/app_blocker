@@ -32,17 +32,58 @@ const path = require('path');
 const { readTarNames, sha256, TEST_KEY_ID, UNSIGNED_KEY_ID } = require('./pack-helper-payload');
 
 const ROOT = path.join(__dirname, '..');
+const KEYS_SOURCE = path.join(ROOT, 'src', 'shared', 'helper-keys.ts');
 
 class SignError extends Error {}
 
+/**
+ * A kiadási kulcsok listája a FORRÁSBÓL (shared/helper-keys.ts), nem a
+ * lefordított kódból: az aláírás ott fut, ahol a kulcs van, és ott se build,
+ * se függőség nem futhat (release.yml: helper-sign). Csak a megszokott alak
+ * olvasható; minden más hiba — egy teszt nézi, hogy a lefordított listával
+ * egyezik.
+ */
+function readReleaseKeys(source = fs.readFileSync(KEYS_SOURCE, 'utf8')) {
+  const m = /^export const RELEASE_KEYS: readonly ReleaseKey\[\] = \[([^\]]*)\];$/m.exec(source);
+  if (!m) throw new SignError('a kiadási kulcsok listája nem olvasható (shared/helper-keys.ts)');
+  const body = m[1].replace(/\/\/[^\n]*/g, '');
+  const re = /\s*\{\s*id:\s*'([A-Za-z0-9._-]{1,32})',\s*spki:\s*'([A-Za-z0-9+/]+={0,2})',?\s*\},?/y;
+  const keys = [];
+  let at = 0;
+  for (let e = re.exec(body); e; e = re.exec(body)) {
+    keys.push({ id: e[1], spki: e[2] });
+    at = re.lastIndex;
+  }
+  if (body.slice(at).trim() !== '') throw new SignError('a kiadási kulcsok listájában ismeretlen alakú elem van');
+  return keys;
+}
+
+/** A leíró annyira, amennyi az aláíráshoz kell; a teljes ellenőrzés a fogadó oldalé (adopt, a segéd). */
+function readManifest(bytes) {
+  let m;
+  try {
+    m = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new SignError('a leíró nem JSON');
+  }
+  if (!m || typeof m !== 'object' || !m.payload || typeof m.payload.sha256 !== 'string'
+    || !Number.isSafeInteger(m.payload.size) || typeof m.keyId !== 'string') {
+    throw new SignError('a leíró alakja nem jó');
+  }
+  return m;
+}
+
+/**
+ * Aláírás. Csak beépített modulokat és a repó saját fájljait használja — a
+ * lefordított kódot (dist/) nem tölti be: a kiadásban a kulcs mellett semmi
+ * nem futhat, amit egy függőség írt.
+ */
 function sign({ dir, release = false, pem, testPubkey, keys } = {}) {
-  const dist = path.join(ROOT, 'dist', 'shared');
-  const { parseManifest, verifyManifest } = require(path.join(dist, 'helper-manifest.js'));
-  const releaseKeys = keys || require(path.join(dist, 'helper-keys.js')).RELEASE_KEYS;
+  const releaseKeys = keys || readReleaseKeys();
   const manifestPath = path.join(dir, 'manifest.json');
   const sigPath = path.join(dir, 'manifest.sig');
   const tar = fs.readFileSync(path.join(dir, 'payload.tar'));
-  const manifest = parseManifest(fs.readFileSync(manifestPath));
+  const manifest = readManifest(fs.readFileSync(manifestPath));
 
   // A leíró ehhez a csomaghoz tartozik-e (egy elavult leírót ne írjunk alá).
   if (manifest.payload.sha256 !== sha256(tar) || manifest.payload.size !== tar.length) {
@@ -85,8 +126,10 @@ function sign({ dir, release = false, pem, testPubkey, keys } = {}) {
   const signedManifest = { ...manifest, keyId: key.id };
   const bytes = Buffer.from(`${JSON.stringify(signedManifest, null, 2)}\n`);
   const sig = crypto.sign(null, bytes, privateKey).toString('base64');
-  // Ugyanazzal az ellenőrzéssel, amivel a segéd fogadja.
-  verifyManifest(bytes, sig, trust);
+  // A listán lévő nyilvános féllel visszaellenőrizve (a teljes ellenőrzés a
+  // fogadó oldalé: a Mac-csomagoló --adopt-ja és a segéd ugyanazzal fogad).
+  const pub = crypto.createPublicKey({ key: Buffer.from(key.spki, 'base64'), format: 'der', type: 'spki' });
+  if (!crypto.verify(null, bytes, pub, Buffer.from(sig, 'base64'))) throw new SignError('az aláírás nem ellenőrizhető vissza');
   fs.writeFileSync(manifestPath, bytes);
   fs.writeFileSync(sigPath, `${sig}\n`);
   return { signed: true, keyId: key.id };
@@ -131,7 +174,7 @@ function adopt({ dir, from, keys } = {}) {
   return { signed, keyId: manifest.keyId };
 }
 
-module.exports = { SignError, adopt, sign, UNSIGNED_KEY_ID };
+module.exports = { SignError, adopt, readReleaseKeys, sign, UNSIGNED_KEY_ID };
 
 if (require.main === module) {
   const args = process.argv.slice(2);

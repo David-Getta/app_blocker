@@ -61,8 +61,26 @@ NOTE='a teljes lista tilt'
 K1MARK=/tmp/breaker-k1-ran
 fail=0
 bad() { echo "HIBA: $*"; fail=1; }
+# A próba saját határideje: a CI lépés korlátja előtt álljon meg, és mondja el,
+# hol tart (különben a CI a diagnosztika előtt lövi le).
+PROBE_START=$(date +%s)
+PROBE_LIMIT=${PROBE_LIMIT:-3600}
+over_time() { [ $(($(date +%s) - PROBE_START)) -ge "$PROBE_LIMIT" ]; }
 # wait_for <másodperc> <parancs…>: másodpercenként próbálja, amíg igaz nem lesz.
-wait_for() { local n=$1 i; shift; for ((i = 0; i < n; i++)); do "$@" && return 0; sleep 1; done; return 1; }
+wait_for() {
+  local n=$1 i
+  shift
+  for ((i = 0; i < n; i++)); do
+    "$@" && return 0
+    if over_time; then
+      echo "HIBA: a próba túllépte a saját határidejét (${PROBE_LIMIT} s) — ennél: $*"
+      show_state
+      exit 1
+    fi
+    sleep 1
+  done
+  return 1
+}
 helper_running() { sudo launchctl print system/$LABEL 2>/dev/null | grep -Eq '^[[:space:]]*pid = [0-9]+$'; }
 helper_pid() { sudo launchctl print system/$LABEL 2>/dev/null | sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\)$/\1/p' | head -n 1; }
 guard_loaded() { sudo launchctl print system/$GLABEL >/dev/null 2>&1; }
@@ -96,7 +114,7 @@ helper_call() {
   " "$SOCK" "$1" "${2:-30000}"
 }
 status_field() {
-  helper_call '{"id":1,"op":"status"}' | node -e "
+  helper_call '{"id":1,"op":"status"}' 5000 | node -e "
     let s = ''; process.stdin.on('data', (d) => { s += d; }).on('end', () => {
       try { const r = JSON.parse(s); const v = (r.data || {})[process.argv[1]]; process.stdout.write(v === undefined ? '' : (typeof v === 'string' ? v : JSON.stringify(v))); } catch { }
     });" "$1"
@@ -299,6 +317,11 @@ ok_mark() { sudo test -e "$RT/.ok-$1"; }
 app_version_is() { [ "$(status_field helperAppVersion)" = "$1" ]; }
 rolled_back_to() { current_is "$1" && sudo test -s "$RT/.bad"; }
 PLIST_SHA=$(sudo shasum -a 256 "$PLIST" | cut -d' ' -f1)
+# A K1-jelző újra az app binárisa helyén: ha egy ajánlat közben bármi az appból
+# elindulna, nyoma marad (a 2u végén vesszük vissza).
+rm -f "$K1MARK"
+{ mv "$EXE" "$EXE.real" && printf '#!/bin/sh\nid -u >> %s\nexec "$0.real" "$@"\n' "$K1MARK" > "$EXE" && chmod 755 "$EXE"; } \
+  || bad "a binárist nem tudtam újra félretenni"
 # Elutasítva, gyorsan, változás nélkül: kicserélt csomag, régebbi, idegen kulcs, FIFO.
 if D=$(make_bundle tampered 99.0.0); then
   printf 'x' >> "$D/payload.tar"
@@ -322,6 +345,15 @@ if D=$(make_bundle fifo 99.0.0) && rm -f "$D/manifest.json" && mkfifo "$D/manife
   echo "$R" | grep -q '"error":"copy"' || bad "a FIFO: $R"
   [ $((T1 - T0)) -le 10 ] || bad "a FIFO-s ajánlat $((T1 - T0)) másodpercig tartott"
 else bad "a FIFO-s csomag nem állt össze"; fi
+# Egy keménylink egy csak root által olvasható fájlra (az állapot): a segéd a
+# felkínáló jogaival olvas, így ez nem kerülhet be — és a válasz semmit nem mond
+# a fájl tartalmáról. (Ha a rendszer a linket sem engedi, nincs mit nézni.)
+if D=$(make_bundle hardlink 99.0.0) && rm -f "$D/manifest.json" && ln "$SDIR/state.json" "$D/manifest.json" 2>/dev/null; then
+  R=$(offer "$D"); echo "keménylink a root fájlára: $R"
+  echo "$R" | grep -q '"error":"copy"' || bad "a keménylinkkel felkínált root-fájlt bemásolta: $R"
+else
+  echo "keménylink a root fájlára: a rendszer nem engedte létrehozni"
+fi
 current_is "$B1" || bad "egy elutasított ajánlat után a current megváltozott: $(current_of)"
 [ -e "$K1MARK" ] && bad "az elutasított ajánlatok közben valami az appból elindult"
 # Átvéve: újabb, aláírt — jelszó nélkül, a leíró változatlan.
@@ -352,6 +384,8 @@ R=$(offer "$D"); echo "ugyanaz újra: $R"
 echo "$R" | grep -Eq '"error":"(bad|cooldown)"' || bad "a visszaállított csomagot újra átvenné: $R"
 current_is "$B2" || bad "a visszaállított csomag újbóli ajánlata után a current: $(current_of)"
 wait_for 15 blocked || bad "a visszaállás után a segéd nem tilt"
+[ -e "$K1MARK" ] && bad "a csendes frissítés közben valami az appból elindult: $(cat "$K1MARK")"
+mv -f "$EXE.real" "$EXE" || bad "a binárist nem tudtam visszatenni"
 [ "$fail" = 0 ] || show_state
 
 # 2r. A FUTTATÓKÖRNYEZET ELTŰNIK (root teszi): a segéd kilép, a launchd nem

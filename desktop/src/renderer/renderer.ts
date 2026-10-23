@@ -3125,15 +3125,29 @@ function renderLegacyHelperBanner(st: StatusData): void {
 /** Az app saját segéd-csomagja (macOS) — a csendes frissítés sávja ehhez mér. */
 let ownHelperBuild: OwnBuild | null = null;
 
+/** A sáv legutóbbi fajtája: egy épp futó csendes frissítés alatt ez marad (ne villogjon). */
+let lastHelperBanner: ReturnType<typeof helperBanner> = 'none';
+
+/** macOS 13.5 előtt a védett futtatókörnyezet nem települ: ott a gomb nem segítene. */
+function macRuntimeUnsupported(): boolean {
+  return window.breaker.platform === 'darwin' && ownHelperBuild?.runtimeSupported === false;
+}
+
+const MACOS_UPDATE_HINT = 'ehhez macOS 13.5 vagy újabb kell (ingyenes: Rendszerbeállítások › Általános › Szoftverfrissítés)';
+
 function renderHelperStaleBanner(st: StatusData): void {
   const banner = $('helperStaleBanner');
-  const kind = helperBanner(st, ownHelperBuild, HELPER_VERSION);
+  let kind = helperBanner(st, ownHelperBuild, HELPER_VERSION);
+  const upd = st.helperUpdate?.state;
+  if (kind === 'none' && lastHelperBanner === 'repair' && (upd === 'working' || upd === 'activating')) kind = 'repair';
+  lastHelperBanner = kind;
   const show = kind !== 'none';
   banner.classList.toggle('hidden', !show);
   if (!show) $('helperStaleError').classList.add('hidden');
-  // Az app frissítése a teendő, nem a segédé: ott nincs mit nyomni.
+  // Az app frissítése a teendő, nem a segédé: ott nincs mit nyomni. macOS 13.5
+  // előtt sincs: a védett hely oda nem települ.
   const btn = $<HTMLButtonElement>('helperStaleBtn');
-  btn.classList.toggle('hidden', kind === 'helper-newer');
+  btn.classList.toggle('hidden', kind === 'helper-newer' || (kind === 'stale' && macRuntimeUnsupported()));
   if (!btn.disabled) btn.textContent = kind === 'move' ? 'Áthelyezés a védett helyre' : 'Háttérszolgáltatás frissítése';
   if (kind === 'stale') {
     // Szándékosan nem nevez meg konkrét funkciót: az eltérés nem mondja meg,
@@ -3141,19 +3155,39 @@ function renderHelperStaleBanner(st: StatusData): void {
     // protokollt beszélik. Egy konkrét ígéret („a napi keret nem működik”) itt
     // néha egyszerűen nem lenne igaz.
     $('helperStaleText').textContent =
-      `A háttérszolgáltatás még a régi verzió (${st.helperVersion}, az app ${HELPER_VERSION}). ` +
-      'Amíg nem frissül, az újabb beállítások nem biztos, hogy érvényesülnek.';
+      `A háttérszolgáltatás még a régi verzió (${st.helperVersion}, az app ${HELPER_VERSION}). `
+      + (macRuntimeUnsupported()
+        ? `A frissítéséhez a védett helyre kell kerülnie — ${MACOS_UPDATE_HINT}.`
+        : 'Amíg nem frissül, az újabb beállítások nem biztos, hogy érvényesülnek.');
   } else if (kind === 'move') {
+    // Csak azt ígérjük, amit ez a kiadás tud: aláíratlan csomagot a segéd nem vesz át csendben.
     $('helperStaleText').textContent =
-      'A háttérszolgáltatás még az app mappájából fut. A védett helyre költöztetése egyszer rendszergazdai jóváhagyást kér; '
-      + 'utána a frissítései is jelszó nélkül, aláírva érkeznek.';
+      'A háttérszolgáltatás még az app mappájából fut. A védett helyre költöztetése egyszer rendszergazdai jóváhagyást kér'
+      + (ownHelperBuild?.signed
+        ? '; utána a frissítései jelszó nélkül, aláírva érkeznek.'
+        : '. (Ez a kiadás még aláíratlan: amíg így marad, a háttérszolgáltatás új verziója egy-egy jóváhagyással érkezik.)');
   } else if (kind === 'repair') {
-    $('helperStaleText').textContent =
-      'A háttérszolgáltatás csendes frissítése nem sikerült, ezért még a régebbi változat fut. '
-      + 'A gombbal rendszergazdai jóváhagyással frissítheted.';
+    $('helperStaleText').textContent = st.helperUpdate?.error === 'need-node'
+      ? 'A háttérszolgáltatás frissítéséhez le kell tölteni a Node.js futtatót, de ez nem sikerült, ezért még a régebbi változat fut. '
+        + 'A gombbal újrapróbálhatod (rendszergazdai jóváhagyással).'
+      : 'A háttérszolgáltatás csendes frissítése nem sikerült, ezért még a régebbi változat fut. '
+        + 'A gombbal rendszergazdai jóváhagyással frissítheted.';
   } else if (kind === 'helper-newer') {
     $('helperStaleText').textContent = 'A háttérszolgáltatás újabb, mint az app: frissítsd az appot.';
   }
+}
+
+/** A telepítő kártya szövege macOS-en: csak azt ígéri, amit ez a kiadás és ez a gép tud. */
+function renderInstallText(): void {
+  if (window.breaker.platform !== 'darwin' || !ownHelperBuild) return;
+  $('installText').textContent = macRuntimeUnsupported()
+    ? `A blokkolást egy rendszerszintű segédszolgáltatás végzi, ami a gép indulásakor magától elindul — ${MACOS_UPDATE_HINT}.`
+    : 'A blokkolást egy rendszerszintű segédszolgáltatás végzi, ami a gép indulásakor magától elindul, egy csak a rendszer '
+      + 'által írható helyről. A telepítéshez egyszer rendszergazdai jóváhagyás kell, és egyszer letöltjük hozzá a '
+      + 'Node.js futtatót (kb. 28 MB) — utána újraindításkor sem kér'
+      + (ownHelperBuild.signed
+        ? ', és a frissítéseit is magától, aláírva veszi át; újra csak akkor kell, ha a háttérszolgáltatást javítani kell.'
+        : '. Ez a kiadás még aláíratlan: amíg így marad, a háttérszolgáltatás új verziója egy-egy jóváhagyással érkezik.');
 }
 
 function renderResumeBanner(st: StatusData): void {
@@ -4659,6 +4693,7 @@ function setupModal(): void {
   // Az app saját segéd-csomagja (macOS): ehhez méri a sáv, kell-e szólni.
   void window.breaker.helperPayload?.().then((b) => {
     ownHelperBuild = b ?? null;
+    renderInstallText();
     if (status) renderHelperStaleBanner(status);
   }).catch(() => { /* régi preload: marad a régi szabály */ });
   void window.breaker.installLocation?.().then((problem) => {
@@ -5581,7 +5616,10 @@ function helperPlaceText(st: StatusData | null): string {
       : '';
     return `védett futtatókörnyezet (${st.helperRuntime ?? '?'}, app ${st.helperAppVersion ?? '?'}, Node.js ${st.helperNode ?? '?'}${upd}${older})`;
   }
-  return st.helperLayout === 'bundle' ? 'az app mappájából' : 'fejlesztői futás';
+  if (st.helperLayout === 'bundle') {
+    return macRuntimeUnsupported() ? `az app mappájából (a védett helyre költöztetéséhez macOS 13.5 kell)` : 'az app mappájából';
+  }
+  return 'fejlesztői futás';
 }
 
 function diagnosticsText(): string {

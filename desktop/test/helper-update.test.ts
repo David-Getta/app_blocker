@@ -14,6 +14,7 @@ import type { HelperManifest, ReleaseKey } from '../src/shared/helper-manifest';
 import {
   badPayloads, offerPathProblem, releaseLock, runUpdate, takeLock, trustedKeys, type UpdateDeps, type UpdateOffer,
 } from '../src/helper/update';
+import { macFetchScript } from '../src/shared/runtime-shell';
 import { buildNodeTar, currentShell, entries, flag, install, packer, read, rig, sha, shTest, type Rig } from './runtime-rig';
 
 function keyPair(id: string): { key: ReleaseKey; priv: crypto.KeyObject } {
@@ -72,6 +73,7 @@ function deps(r: Rig, over: Partial<UpdateDeps> = {}): UpdateDeps {
     now: () => Date.now(),
     pid: process.pid,
     alive: (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } },
+    readAs: 501,
     ...over,
   };
 }
@@ -188,6 +190,32 @@ shTest('a felkínált út: rossz alak, FIFO a leíró helyén — elutasítva; a
   assert.ok(Date.now() - t0 < 5000);
   assert.ok(ticks > 0, 'a segéd köre nem állt meg');
   assertNothingChanged(r);
+});
+
+shTest('a felkínált fájlokat a felkínáló jogaival olvassa; amit ő nem olvashat, az copy — és a leíró hibájából semmit nem mond vissza', async () => {
+  const r = installed();
+  const b = makeBundle(r);
+  const res = await runUpdate(offerOf(b), deps(r));
+  assert.equal(res.ok, true, JSON.stringify(res));
+  releaseLock(r.rt, process.pid);
+  const asked = fs.readFileSync(`${r.calls}.asuser`, 'utf8').trim().split('\n');
+  assert.deepEqual(asked, ['#501', '#501', '#501'], 'a leíró, az aláírás és a csomag is a felkínáló nevében');
+  // Amit a felkínáló nem olvashat (például egy keménylink egy csak root által
+  // olvasható fájlra): nem kerül be.
+  const r2 = installed();
+  const b2 = makeBundle(r2);
+  flag(r2, 'asuser-deny');
+  assert.deepEqual(await runUpdate(offerOf(b2), deps(r2)), { ok: false, error: 'copy', detail: 'copy' });
+  assertNothingChanged(r2);
+  // Egy nem leíró (például egy idegen JSON) hibája csak a naplóba megy.
+  const r3 = installed();
+  const b3 = makeBundle(r3);
+  fs.writeFileSync(path.join(b3.dir, 'manifest.json'), JSON.stringify({ titkos: 1, kulcs: 2 }));
+  const logs: string[] = [];
+  const res3 = await runUpdate(offerOf(b3), deps(r3, { log: (m) => logs.push(m) }));
+  assert.deepEqual(res3, { ok: false, error: 'unsigned' });
+  assert.ok(logs.some((m) => m.includes('nem fogadható el')), logs.join('\n'));
+  assert.throws(() => macFetchScript({ bundle: b.dir, nodeTar: null, readAs: 0 }, r.opts), /érvénytelen felhasználó/);
 });
 
 shTest('a zár: amíg egy élő folyamat tartja, busy; egy halottét átveszi', async () => {

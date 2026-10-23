@@ -11,6 +11,8 @@ export interface OwnBuild {
   helperVersion: string;
   /** a leírója aláírt — aláíratlant (fejlesztői build, kulcs előtti kiadás) a segéd nem vesz át */
   signed: boolean;
+  /** a gép macOS-e futtatja-e a védett futtatókörnyezetet (13.5+); hiányában igen */
+  runtimeSupported?: boolean;
 }
 
 /** Amit a döntés a segéd státuszából néz. */
@@ -20,11 +22,18 @@ export interface HelperFacts {
   helperLayout?: 'root' | 'bundle' | 'dev';
   helperBuild?: string;
   helperAppVersion?: string;
-  helperUpdate?: { state: string; error?: string };
+  helperUpdate?: { state: string; error?: string; at?: number };
 }
 
 /** A legkisebb segéd-protokoll, ami a csendes frissítést ismeri. */
 export const OFFER_MIN_HELPER = '0.7.0';
+
+/**
+ * Ha a csendes frissítéshez új Node kell, a felület tölti le. Ennyi ideig
+ * hagyjuk dolgozni; ha utána is ott áll, és a protokoll más, a gomb segít (és
+ * kimondja, ha nincs internet).
+ */
+export const NEED_NODE_GRACE_MS = 3 * 60_000;
 
 function atLeast(a: string | undefined, b: string): boolean {
   return !!a && (a === b || isNewer(a, b));
@@ -70,7 +79,9 @@ export type HelperBanner =
  * Aláíratlan saját csomagnál nincs csendes út: ott a régi szabály áll (csak a
  * protokoll eltérése kér gombot), a diagnosztika mondja ki, melyik kiadás fut.
  */
-export function helperBanner(st: HelperFacts, own: OwnBuild | null, appHelperVersion: string): HelperBanner {
+export function helperBanner(
+  st: HelperFacts, own: OwnBuild | null, appHelperVersion: string, now: number = Date.now(),
+): HelperBanner {
   if (!st.helperVersion) return 'none';
   if (st.helperLayout === 'root' && atLeast(st.helperVersion, OFFER_MIN_HELPER) && own) {
     const action = offerAction(st, own);
@@ -79,11 +90,19 @@ export function helperBanner(st: HelperFacts, own: OwnBuild | null, appHelperVer
   if (st.helperLayout === 'root' && atLeast(st.helperVersion, OFFER_MIN_HELPER) && own?.signed) {
     if (st.helperBuild === own.sha256) return 'none';
     const u = st.helperUpdate;
-    if (u && (u.state === 'failed' || u.state === 'rolled-back') && u.error !== 'need-node') return 'repair';
+    if (u && (u.state === 'failed' || u.state === 'rolled-back')) {
+      if (u.error !== 'need-node') return 'repair';
+      // A Node letöltése a felületen múlik: ha percek óta nem sikerül, és a
+      // segéd protokollja más, ne maradjon szó nélkül.
+      if (st.helperVersion !== appHelperVersion && now - (u.at ?? now) >= NEED_NODE_GRACE_MS) return 'repair';
+    }
     return 'none';
   }
   if (st.helperVersion !== appHelperVersion) return 'stale';
   // Ugyanaz a protokoll, de macOS-en még az app-csomagból fut: amíg így van,
   // egy fájlművelet az app mappájában a következő induláskor rootként futna.
-  return st.platform === 'darwin' && st.helperLayout === 'bundle' ? 'move' : 'none';
+  // A védett helyhez macOS 13.5 kell — régebbin a gomb nem segítene (a
+  // diagnosztika mondja ki, miért marad).
+  if (st.platform === 'darwin' && st.helperLayout === 'bundle') return own?.runtimeSupported === false ? 'none' : 'move';
+  return 'none';
 }

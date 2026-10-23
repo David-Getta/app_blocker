@@ -60,6 +60,8 @@ export interface UpdateDeps {
   pid: number;
   /** a pid él-e (egy halott tartó zárját átvesszük) */
   alive: (pid: number) => boolean;
+  /** a felkínáló (a socket gazdája): a bemeneteket az ő jogaival olvassuk */
+  readAs: number;
 }
 
 /** A felkínált utak alakja: a csomag mappája és a Node tarball neve kötött. */
@@ -165,7 +167,7 @@ export async function runUpdate(offer: UpdateOffer, d: UpdateDeps): Promise<Upda
   let keepLock = false;
   try {
     // 2. Bemásolás.
-    const fetched = await d.runShell(macFetchScript({ bundle: offer.bundle, nodeTar: offer.nodeTar ?? null }, d.shellOptions));
+    const fetched = await d.runShell(macFetchScript({ bundle: offer.bundle, nodeTar: offer.nodeTar ?? null, readAs: d.readAs }, d.shellOptions));
     const m = /^in (\/.+)$/m.exec(fetched.out);
     if (fetched.code !== 0 || !m) return { ok: false, error: 'copy', detail: token(fetched.err) };
     inDir = m[1];
@@ -182,7 +184,10 @@ export async function runUpdate(offer: UpdateOffer, d: UpdateDeps): Promise<Upda
         d.keys(),
       );
     } catch (e) {
-      return { ok: false, error: 'unsigned', detail: (e as Error).message };
+      // A részlet (a leíró hibája) csak a naplóba: a felkínálónak nem mondunk
+      // többet a bemásolt fájlról, mint hogy nem fogadtuk el.
+      d.log(`csendes frissítés: a leíró nem fogadható el (${(e as Error).message})`);
+      return { ok: false, error: 'unsigned' };
     }
     if (!isNewer(manifest.appVersion, d.ownAppVersion)) {
       return { ok: false, error: 'not-newer', detail: `${manifest.appVersion} ≤ ${d.ownAppVersion}` };

@@ -130,6 +130,12 @@ export interface MacShellTools {
   /** egy fa listája ACL-sorokkal (macOS: ls -leR) */
   aclList: string;
   df: string;
+  /**
+   * Egy parancs a megadott felhasználóként (`<asUser> "#<uid>" <parancs…>`): a
+   * csendes frissítés bemeneteit a felkínáló jogaival olvassuk — amit ő nem
+   * olvashat, azt a segéd sem másolja be neki.
+   */
+  asUser: string;
 }
 
 export const MAC_SHELL_TOOLS: MacShellTools = {
@@ -149,6 +155,7 @@ export const MAC_SHELL_TOOLS: MacShellTools = {
   swapLink: '/bin/mv -fh',
   aclList: '/bin/ls -leR',
   df: '/bin/df -Pk',
+  asUser: '/usr/bin/sudo -n -u',
 };
 
 export interface MacRuntimeShellOptions {
@@ -617,6 +624,8 @@ export interface MacFetchInputs {
   bundle: string;
   /** a letöltött Node tarball (ha a frissítés új Node-ot kér) */
   nodeTar: string | null;
+  /** a felkínáló (a socket gazdája): az ő jogaival olvasunk */
+  readAs: number;
 }
 
 /**
@@ -627,15 +636,24 @@ export interface MacFetchInputs {
 export function macFetchScript(inputs: MacFetchInputs, o: MacRuntimeShellOptions = MAC_RUNTIME_SHELL_DEFAULTS): string {
   checkPath(inputs.bundle, 'a csomag mappája');
   if (inputs.nodeTar !== null) checkPath(inputs.nodeTar, 'a Node');
+  if (!Number.isSafeInteger(inputs.readAs) || inputs.readAs <= 0) throw new Error('érvénytelen felhasználó');
   return `${[
     ...prologue(o),
     `BUNDLE=${shQuote(inputs.bundle)}`,
     `NODE_TAR=${inputs.nodeTar === null ? "''" : shQuote(inputs.nodeTar)}`,
+    `READ_AS=${inputs.readAs}`,
+    '# A felkínált fájlokat a felkínáló JOGAIVAL olvassuk (nem rootként): egy',
+    '# keménylink vagy egy közben kicserélt link így sem visz el egy csak root',
+    '# által olvasható fájlhoz. Az olvasó gyermek a kimenetére ír, a fájlt a root',
+    '# héj nyitja — a másolat a rooté.',
+    'copy_as() {',
+    `  limited ${o.copySeconds} ${o.tools.asUser} "#$READ_AS" /bin/sh -c '[ ! -L "$1" ] && [ -f "$1" ] && exec dd if="$1" bs=65536 count="$2"' copy_as "$1" "$3" > "$2" 2>/dev/null`,
+    '}',
     'S=$(mktemp -d "$RT/.in.XXXXXX") || die fail',
-    `copy_in "$BUNDLE/manifest.json" "$S/manifest.json" ${MANIFEST_MAX_BYTES / 65536} || die copy`,
-    `copy_in "$BUNDLE/manifest.sig" "$S/manifest.sig" 1 || die copy`,
-    `copy_in "$BUNDLE/payload.tar" "$S/payload.tar" ${PAYLOAD_MAX_BYTES / 65536} || die copy`,
-    `if [ -n "$NODE_TAR" ]; then copy_in "$NODE_TAR" "$S/node.tar.xz" ${NODE_TAR_MAX_BYTES / 65536} || die copy; fi`,
+    `copy_as "$BUNDLE/manifest.json" "$S/manifest.json" ${MANIFEST_MAX_BYTES / 65536} || die copy`,
+    `copy_as "$BUNDLE/manifest.sig" "$S/manifest.sig" 1 || die copy`,
+    `copy_as "$BUNDLE/payload.tar" "$S/payload.tar" ${PAYLOAD_MAX_BYTES / 65536} || die copy`,
+    `if [ -n "$NODE_TAR" ]; then copy_as "$NODE_TAR" "$S/node.tar.xz" ${NODE_TAR_MAX_BYTES / 65536} || die copy; fi`,
     'IN="$S"',
     'S=',
     'printf \'in %s\\n\' "$IN"',

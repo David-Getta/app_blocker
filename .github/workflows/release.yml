@@ -75,50 +75,86 @@ jobs:
           NOTES
           fi
 
-  # A SEGÉD CSOMAGJÁNAK ALÁÍRÁSA (macOS, #151). A telepített segéd a későbbi
-  # kiadásokat jelszó nélkül veszi át — de csak a kiadási kulccsal aláírt
-  # csomagot (src/shared/helper-keys.ts). A kulcs CSAK ebben a jobban van: a
-  # helper-signing környezet titka (HELPER_SIGNING_KEY); a csomagoló és a
-  # feltöltő job nem látja. A környezethez jóváhagyót is lehet rendelni: akkor
-  # minden kiadás az ő jóváhagyására vár. Amíg nincs kiadási kulcs, a leíró
-  # aláíratlan marad (figyelmeztetés a futás lapján), és a segédek a gombbal,
-  # jelszóval frissülnek. A macOS-csomagoló a saját buildje mellé veszi át a
-  # leírót — csak ha a két build bájtra ugyanazt a csomagot adta
-  # (sign-helper-manifest.js --adopt).
-  helper-sign:
-    name: A segéd csomagjának aláírása
+  # A SEGÉD CSOMAGJA (macOS, #151). A telepített segéd a későbbi kiadásokat
+  # jelszó nélkül veszi át — de csak a kiadási kulccsal aláírt csomagot
+  # (src/shared/helper-keys.ts). Két lépésben:
+  #   helper-build: jogosultság és titok nélkül megépíti a csomagot (itt fut a
+  #     fordító és minden függőség);
+  #   helper-sign: a helper-signing környezet titkával (HELPER_SIGNING_KEY)
+  #     aláírja — függőség, fordítás és lefordított kód nélkül: csak a repó
+  #     aláírója és a Node beépített moduljai futnak a kulcs mellett.
+  # A macOS-csomagoló a saját buildje mellé veszi át az aláírt leírót — csak
+  # ha a két build (Linux és macOS) bájtra ugyanazt a csomagot adta
+  # (sign-helper-manifest.js --adopt). A környezethez jóváhagyót is lehet
+  # rendelni: akkor minden kiadás az ő jóváhagyására vár. Amíg nincs kiadási
+  # kulcs, a leíró aláíratlan marad (figyelmeztetés a futás lapján), és a
+  # segédek a gombbal, jelszóval frissülnek. A Windows-ág is megvárja: a
+  # kiadás csak egészben megy ki (a publish job mindkettőt kéri).
+  helper-build:
+    name: A segéd csomagja (Linux, titok nélkül)
     needs: prepare
     runs-on: ubuntu-latest
-    environment: helper-signing
     timeout-minutes: 15
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
-      # Telepítő-szkriptek nélkül: a fordításhoz nem kellenek, és ahol a kulcs
-      # megfordul, ott egy függőség se futtasson semmit magától.
       - run: npm ci --ignore-scripts
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Verzió beállítása a tagből
         run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
       - run: npm run build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: helper-payload
+          path: |
+            desktop/dist-payload/helper/payload.tar
+            desktop/dist-payload/helper/manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+  helper-sign:
+    name: A segéd csomagjának aláírása
+    needs: helper-build
+    runs-on: ubuntu-latest
+    environment: helper-signing
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # Csak a repó: se npm, se fordítás, se a csomagban lévő kód.
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v7
+        with:
+          name: helper-payload
+          path: ${{ runner.temp }}/helper
       - name: Aláírás (a kiadás módja)
         env:
           HELPER_SIGNING_KEY: ${{ secrets.HELPER_SIGNING_KEY }}
-        run: node scripts/sign-helper-manifest.js --release
+          NODE_OPTIONS: ""
+        run: node desktop/scripts/sign-helper-manifest.js --release "$RUNNER_TEMP/helper"
       - uses: actions/upload-artifact@v6
         with:
           name: helper-manifest
           path: |
-            desktop/dist-payload/helper/manifest.json
-            desktop/dist-payload/helper/manifest.sig
+            ${{ runner.temp }}/helper/manifest.json
+            ${{ runner.temp }}/helper/manifest.sig
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   desktop:
     name: Asztali telepítő (${{ matrix.os }})

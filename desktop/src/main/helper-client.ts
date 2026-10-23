@@ -12,6 +12,12 @@ export interface HelperClientOptions {
    * kapcsolat első sora a `hello` vele — a kulcsos segéd enélkül szóba sem áll.
    */
   key?: () => string | null;
+  /**
+   * Egy kérés legfeljebb ennyi ideig várhat a válaszra (alapból 10 s). A segéd
+   * kapcsolatonként sorban válaszol: egy hosszú kérés (a csendes frissítés)
+   * a saját kapcsolatán, a saját korlátjával menjen — ne a felületé mögött.
+   */
+  timeoutMs?: number;
 }
 
 export class HelperClient {
@@ -129,7 +135,7 @@ export class HelperClient {
       });
       setTimeout(() => {
         if (this.pending.delete(id)) reject(new Error('HELPER_TIMEOUT'));
-      }, 10_000);
+      }, this.opts.timeoutMs ?? 10_000);
     });
   }
 }

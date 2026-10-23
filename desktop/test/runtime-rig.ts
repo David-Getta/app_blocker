@@ -136,6 +136,9 @@ export function rig(over: Partial<MacRuntimeShellOptions> = {}): Rig {
   exe(path.join(tools, 'sw_vers'), `if [ -f ${f('macos')} ]; then cat ${f('macos')}; else echo 14.6.1; fi`);
   exe(path.join(tools, 'plutil'), '[ "$1" = -lint ] && grep -q "<plist" "$2"');
   exe(path.join(tools, 'lsle'), `ls -lR "$@"\n[ -f ${f('acl')} ] && echo ' 0: group:everyone allow write'\nexit 0`);
+  // A felkínáló jogaival olvasás (sudo -u): feljegyzi, kinek a nevében; az
+  // `asuser-deny` jelzőre megtagadja (mint egy fájl, amit a felkínáló nem olvashat).
+  exe(path.join(tools, 'asuser'), `echo "$1" >> ${shQuote(`${calls}.asuser`)}\n[ -f ${f('asuser-deny')} ] && exit 1\nshift\nexec "$@"`);
   exe(path.join(tools, 'df'), `echo 'Filesystem 1024-blocks Used Available Capacity Mounted'\nif [ -f ${f('full')} ]; then echo 'd 1 1 100 99% /'; else echo 'd 1 1 99999999 1% /'; fi`);
 
   const nodeArm = buildNodeTar(root, 'arm64', 'v9.8.7', nodeEnv, flags);
@@ -178,6 +181,7 @@ export function rig(over: Partial<MacRuntimeShellOptions> = {}): Rig {
       swapLink: 'mv -fT',
       aclList: path.join(tools, 'lsle'),
       df: path.join(tools, 'df'),
+      asUser: path.join(tools, 'asuser'),
     },
     copySeconds: 5,
     selfcheckSeconds: 2,

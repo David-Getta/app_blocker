@@ -102,7 +102,7 @@ export interface BreakerBridge {
   /** Windowson: ha az app nem a Program Files alatt van, a teendő mondata; különben null. */
   installLocation(): Promise<string | null>;
   /** az app saját segéd-csomagja (#151, macOS) — null, ha nincs */
-  helperPayload(): Promise<{ sha256: string; size: number; appVersion: string; helperVersion: string; signed: boolean } | null>;
+  helperPayload(): Promise<{ sha256: string; size: number; appVersion: string; helperVersion: string; signed: boolean; runtimeSupported: boolean } | null>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
   quitApp(): Promise<void>;
   /** a kiadási jegyzetek megnyitása a böngészőben */

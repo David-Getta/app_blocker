@@ -259,6 +259,40 @@ test('aláírás: elavult leíró (a csomag változott) — nem írjuk alá', ()
   assert.throws(() => signer.sign({ dir: r.out, pem: k.pem, keys: [k.key] }), /nem ehhez a payload\.tar-hoz/);
 });
 
+test('a kiadási kulcsok listáját az aláíró a forrásból olvassa — ugyanazt, amit a segéd lefordítva ismer', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { RELEASE_KEYS } = require(path.join(DIST, 'shared', 'helper-keys.js'));
+  assert.deepEqual(signer.readReleaseKeys(), RELEASE_KEYS);
+  const src = (body: string) => `// fej\nexport const RELEASE_KEYS: readonly ReleaseKey[] = [${body}];\n`;
+  assert.deepEqual(signer.readReleaseKeys(src("\n  { id: 'r1', spki: 'QUJD' }, // első\n  { id: 'r2', spki: 'REVG' },\n")),
+    [{ id: 'r1', spki: 'QUJD' }, { id: 'r2', spki: 'REVG' }]);
+  for (const bad of ['KULCS', "{ id: 'r1', spki: 'QUJD' }, ...MAS", "{ id: 'r1', spki: KULCS }"]) {
+    assert.throws(() => signer.readReleaseKeys(src(bad)), /ismeretlen alakú/, bad);
+  }
+  assert.throws(() => signer.readReleaseKeys('export const RELEASE_KEYS = [];'), /nem olvasható/);
+});
+
+test('az aláíró a lefordított kód és a függőségek nélkül fut (a kiadásban a kulcs mellett semmi más)', () => {
+  const root = tmp('signer-');
+  for (const f of ['scripts/sign-helper-manifest.js', 'scripts/pack-helper-payload.js', 'src/shared/helper-keys.ts']) {
+    fs.mkdirSync(path.join(root, path.dirname(f)), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, f), path.join(root, f));
+  }
+  const r = packTo();
+  const env = { PATH: process.env.PATH ?? '', HELPER_SIGNING_KEY: '', BREAKER_HELPER_TEST_PUBKEY: '' };
+  if (signer.readReleaseKeys().length === 0) {
+    const out = execFileSync(process.execPath, [path.join(root, 'scripts', 'sign-helper-manifest.js'), '--release', r.out], { env, encoding: 'utf8', cwd: root });
+    assert.match(out, /::warning::/);
+  }
+  // Egy listán kívüli kulccsal: a lista olvasható volt, a hiba a kulcsé — nem egy hiányzó modulé.
+  assert.throws(() => execFileSync(process.execPath, [path.join(root, 'scripts', 'sign-helper-manifest.js'), '--release', r.out], {
+    env: { ...env, HELPER_SIGNING_KEY: keyPair('x').pem }, stdio: 'pipe', cwd: root,
+  }), (e: Error & { stderr: Buffer }) => {
+    assert.match(String(e.stderr), /nincs a kiadási kulcsok listáján/);
+    return true;
+  });
+});
+
 test('átvétel (a kiadás útja): a másik jobban aláírt leíró csak a bájtra egyező csomag mellé kerül', () => {
   const k = keyPair('r1');
   // Az aláíró job buildje, és a csomagolóé: ugyanabból a forrásból, tehát ugyanaz.
@@ -298,11 +332,24 @@ test('a parancssor: a build kimenete, kulcs nélkül fejlesztői módban; ismere
   const env = { ...process.env, HELPER_SIGNING_KEY: '', BREAKER_HELPER_TEST_PUBKEY: '' };
   assert.match(execFileSync(process.execPath, [script, r.out], { env, encoding: 'utf8' }), /aláíratlan/);
   assert.throws(() => execFileSync(process.execPath, [script, '--force', r.out], { env, stdio: 'pipe' }));
-  assert.throws(() => execFileSync(process.execPath, [script, '--adopt'], { env, stdio: 'pipe' }));
-  assert.throws(() => execFileSync(process.execPath, [script, '--adopt', r.out, '--release', r.out], { env, stdio: 'pipe' }));
-  // Az átvétel a parancssorból: a csomag mellé, a figyelmeztetéssel, amíg nincs kiadási kulcs.
+  const status = (args: string[]): number | null => {
+    try {
+      execFileSync(process.execPath, [script, ...args], { env, stdio: 'pipe' });
+      return 0;
+    } catch (e) {
+      return (e as { status: number | null }).status;
+    }
+  };
+  assert.equal(status(['--adopt']), 2, 'hiányzó mappa: használati hiba');
+  assert.equal(status(['--adopt', r.out, '--release', r.out]), 2, 'a kettő együtt: használati hiba');
+  // Az átvétel a parancssorból: a csomag mellé — kulcs nélkül figyelmeztetéssel,
+  // kiadási kulccsal (a listán) aláíratlant nem vesz át.
   const own = packTo();
-  assert.match(execFileSync(process.execPath, [script, '--adopt', r.out, own.out], { env, encoding: 'utf8' }), /::warning::.*aláíratlan/);
+  if (signer.readReleaseKeys().length === 0) {
+    assert.match(execFileSync(process.execPath, [script, '--adopt', r.out, own.out], { env, encoding: 'utf8' }), /::warning::.*aláíratlan/);
+  } else {
+    assert.equal(status(['--adopt', r.out, own.out]), 1);
+  }
   const k = keyPair(TEST_KEY_ID);
   const t = packTo({ testPubkey: k.key.spki });
   const out = execFileSync(process.execPath, [script, t.out], {

@@ -28,13 +28,20 @@ import { ensureHelperKey } from './helper-key';
  * `signed`: a leírója alá van-e írva — aláíratlan csomagot a segéd csendben
  * nem vesz át, így felkínálni sincs értelme.
  */
-export interface HelperPayloadInfo { sha256: string; size: number; appVersion: string; helperVersion: string; signed: boolean }
+export interface HelperPayloadInfo {
+  sha256: string; size: number; appVersion: string; helperVersion: string; signed: boolean;
+  /** a gép macOS-e futtatja-e a védett futtatókörnyezet Node-ját (13.5+) */
+  runtimeSupported: boolean;
+}
 
 export function helperPayloadInfo(): HelperPayloadInfo | null {
   try {
-    const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'helper-payload.json'), 'utf8')) as Omit<HelperPayloadInfo, 'signed'>;
+    const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'helper-payload.json'), 'utf8')) as Omit<HelperPayloadInfo, 'signed' | 'runtimeSupported'>;
     if (!/^[0-9a-f]{64}$/.test(v.sha256) || !Number.isSafeInteger(v.size) || v.size <= 0) return null;
-    return { sha256: v.sha256, size: v.size, appVersion: v.appVersion, helperVersion: v.helperVersion, signed: bundleSigned() };
+    return {
+      sha256: v.sha256, size: v.size, appVersion: v.appVersion, helperVersion: v.helperVersion, signed: bundleSigned(),
+      runtimeSupported: process.platform === 'darwin' && macosAtLeast(process.getSystemVersion(), NODE_RUNTIME.minMacos),
+    };
   } catch {
     return null;
   }
@@ -75,7 +82,15 @@ function runFile(
 // a kiírás meg a futtatás közötti pillanatban a saját felhasználóként már
 // kódot futtató támadó kicserélhette — root/SYSTEM jogért.
 
-async function installMac(): Promise<void> {
+/**
+ * Kell-e a Node a telepítéshez: `have` — a védett futtatókörnyezetben már a
+ * rögzített Node fut (a telepítő azt kölcsönzi, nem töltünk le semmit);
+ * `need` — nincs ilyen (első telepítés, költözés, más Node); `unknown` — a
+ * segéd nem felel (megpróbáljuk letölteni, de a telepítő kölcsönözhet is).
+ */
+export type NodeNeed = 'have' | 'need' | 'unknown';
+
+async function installMac(node: NodeNeed): Promise<void> {
   // Lemezképről vagy karanténból nem: a bemenetek a leválasztáskor eltűnnének
   // (shared/install-script.ts).
   const problem = macInstallLocationProblem(process.execPath);
@@ -86,13 +101,18 @@ async function installMac(): Promise<void> {
   if (!info || !fs.existsSync(payloadTar)) {
     throw new Error('Ebből az appból hiányzik a háttérszolgáltatás csomagja. Töltsd le újra az appot.');
   }
-  // A Node: a gyorsítótárból vagy letöltve. Ha nem sikerül, a telepítő a már
-  // telepített futtatót kölcsönözheti (javításnál) — ha az sincs, need-node.
+  // A Node: a gyorsítótárból vagy letöltve — ha a futtatókörnyezetben már a
+  // rögzített fut, azt kölcsönzi a telepítő. Ha a letöltés nem sikerül, és
+  // biztosan kellene, a jelszó ELŐTT mondjuk ki (különben a jóváhagyás után
+  // jönne a need-node).
   let nodeTar: string | null = null;
-  try {
-    nodeTar = await ensureNodeTarball();
-  } catch {
-    nodeTar = null;
+  if (node !== 'have') {
+    try {
+      nodeTar = await ensureNodeTarball();
+    } catch {
+      if (node === 'need') throw new Error(MAC_INSTALL_ERRORS['need-node']);
+      nodeTar = null;
+    }
   }
   // A telepítő felhasználó azonosítója a segéd kapcsolói közé kerül: a root
   // segéd a csatornáját erre a fiókra szűkíti (helper/server.ts).
@@ -135,8 +155,8 @@ async function installWindows(): Promise<void> {
   }
 }
 
-export async function installHelper(): Promise<void> {
-  if (process.platform === 'darwin') return installMac();
+export async function installHelper(node: NodeNeed = 'unknown'): Promise<void> {
+  if (process.platform === 'darwin') return installMac(node);
   if (process.platform === 'win32') return installWindows();
   throw new Error('Ezen a platformon kézzel indítsd a helpert: sudo npm run helper:dev');
 }

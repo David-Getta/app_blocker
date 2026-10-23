@@ -112,12 +112,24 @@ shTest('a Node tarball más, de ugyanakkora, és benne ugyanaz a bináris — a 
   // Ugyanaz a tartalom más időbélyeggel: ugyanaz a bináris, más tarball.
   const work = fs.mkdtempSync(path.join(r.root, 'retar-'));
   execFileSync('tar', ['-xJf', r.inputs.nodeTar as string, '-C', work]);
+  // Pontosan ugyanakkora tarballt véletlenül ritkán kapunk; a rövidebbet az xz
+  // „stream padding”-je (négy bájtonként nullák a végén) a kibontás zavarása
+  // nélkül kiegészíti — így minden futáson van jelölt.
+  const target = r.pin.arm64.tarSize;
   let other: Buffer | null = null;
   for (let t = 1; t < 400 && !other; t++) {
     const f = path.join(r.root, `retar-${t}.tar.xz`);
     execFileSync('tar', ['-cJf', f, `--mtime=@${1_000_000 + t * 7919}`, '-C', work, 'node-v9.8.7-darwin-arm64']);
     const b = fs.readFileSync(f);
-    if (b.length === r.pin.arm64.tarSize && sha(b) !== r.pin.arm64.tarSha256) other = b;
+    if (b.length > target || (target - b.length) % 4 !== 0) continue;
+    const padded = Buffer.concat([b, Buffer.alloc(target - b.length)]);
+    if (sha(padded) === r.pin.arm64.tarSha256) continue;
+    fs.writeFileSync(f, padded);
+    // Érvényes, kibontható tarball, benne ugyanazzal a binárissal.
+    const out = fs.mkdtempSync(path.join(r.root, 'check-'));
+    execFileSync('tar', ['-xJf', f, '-C', out]);
+    const bin = fs.readFileSync(path.join(out, 'node-v9.8.7-darwin-arm64', 'bin', 'node'));
+    if (sha(bin) === r.pin.arm64.binSha256) other = padded;
   }
   assert.ok(other, 'nem találtam ugyanakkora tarballt');
   fs.writeFileSync(r.inputs.nodeTar as string, other);
