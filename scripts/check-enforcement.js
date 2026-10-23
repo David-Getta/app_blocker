@@ -4564,6 +4564,18 @@ const WIRES = [
     needle: "'      try { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) }',",
     lost: 'Windowson az őr helyben írná a hosts fájlt — egy betelt lemezen csonka blokk maradna',
   },
+  // Közvetlenül írás előtt újranéz: ha közben a segéd elindult, az őr nem ír —
+  // különben a kettő felváltva írná a hosts fájlt.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'  $now = (Get-State).s',\n    \"  if (-not ($now -eq 'gone' -or ($now -eq 'present' -and $why -eq 'dead'))) { return }\",",
+    lost: 'Windowson az őr egy épp elinduló segéddel felváltva írná a hosts fájlt',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'# Közvetlenül írás előtt még egyszer: ha közben a segéd elindult, nem írunk.',\n    'still || exit 0',",
+    lost: 'macOS-en az őr egy épp elinduló segéddel felváltva írná a hosts fájlt',
+  },
   // Ha a csere nem megy (egy program nyitva tartja a hosts fájlt), helyben ír —
   // különben az őr ilyenkor soha nem írna; és ideiglenes fájl nem marad.
   {

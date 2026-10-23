@@ -566,7 +566,8 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   assert.ok(!s.includes('GetPathRoot'), 'a hiányzó meghajtó ne tegye tétlenné az őrt');
   // Unió: a hosts régi blokkjának tiltó sorai is a halmazba kerülnek. (A
   // felemás jelölőket és a sorvégeket az élő próba nézi lent.)
-  assert.ok(s.includes('    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }'));
+  // (A hosts-ciklusé: ugyanez a sor a szigorú blokk olvasásában is ott van.)
+  assert.ok(s.includes("    $cur.Add($l)\r\n    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }"));
   assert.ok(s.includes('if (-not $ok) { $cur.Clear();'));
   // A nyelvi összevetés nem dönthet: minden StartsWith/EndsWith sorszámos, és
   // szöveget -ceq/-eq '' helyett a Same (bájtra azonos) hasonlít.
@@ -636,7 +637,7 @@ interface WinRig { root: string; hosts: string; strict: string; flushes: string;
 
 const psQuote = (p: string) => `'${p.replace(/'/g, "''")}'`;
 
-function winRig(hosts: Buffer | null, strict: string, extra: string[] = []): WinRig {
+function winRig(hosts: Buffer | null, strict: string, extra: string[] = [], why = 'gone'): WinRig {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wguard-'));
   const sys = path.join(root, 'sys');
   fs.mkdirSync(sys);
@@ -664,7 +665,7 @@ function winRig(hosts: Buffer | null, strict: string, extra: string[] = []): Win
     'function Trusted-Dir([string]$p) { return $true }',
     "function Get-State { return @{ s = 'gone' } }",
     ...extra,
-    "try { Apply-Strict 'gone' } catch { Log ('hiba: ' + $_.Exception.Message); exit 3 }",
+    `try { Apply-Strict '${why}' } catch { Log ('hiba: ' + $_.Exception.Message); exit 3 }`,
     'exit 0',
     '',
   ].join('\n'));
@@ -791,6 +792,23 @@ winTest('Windows-őr élesben: a hiányzó hosts fájlt létrehozza; idegen sor 
   runWin(e);
   assert.equal(latin1(e.hosts), '127.0.0.1 localhost\r\n');
   assert.equal(read(e.flushes), '');
+});
+
+winTest('Windows-őr élesben: közvetlenül írás előtt újranéz — ha közben a segéd elindult, nem ír', () => {
+  // A futó segéd és az őr nem írhatja felváltva a hosts fájlt (a macOS-őr
+  // párja: „ha a segéd közvetlenül írás előtt elindul, nem ír”).
+  const strict = renderStrictBlock(['a.example'], NOTE);
+  const hosts = Buffer.from('127.0.0.1 localhost\r\n');
+  for (const [state, why, writes] of [
+    ['alive', 'gone', false], ['alive', 'dead', false], ['inert', 'gone', false],
+    ['present', 'gone', false], ['present', 'dead', true], ['gone', 'gone', true], ['gone', 'dead', true],
+  ] as Array<[string, string, boolean]>) {
+    const w = winRig(hosts, strict, [`function Get-State { return @{ s = '${state}' } }`], why);
+    runWin(w);
+    const label = `${state}/${why}`;
+    assert.equal(latin1(w.hosts).includes('0.0.0.0 a.example'), writes, label);
+    assert.equal(read(w.flushes), writes ? '/flushdns\n' : '', label);
+  }
 });
 
 winTest('Windows-őr élesben: ha a csere nem megy, helyben ír; ideiglenes fájl nem marad', () => {
